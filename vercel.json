@@ -1,41 +1,5 @@
 {
     "version": 2,
-    "builds": [
-        {
-            "src": "package.json",
-            "use": "@vercel/next"
-        }
-    ],
-    "routes": [
-        {
-            "src": "/api/(.*)",
-            "dest": "/api/$1"
-        },
-        {
-            "src": "/dashboard/(.*)",
-            "dest": "/dashboard/$1"
-        },
-        {
-            "src": "/login",
-            "dest": "/login"
-        },
-        {
-            "src": "/signup",
-            "dest": "/signup"
-        },
-        {
-            "src": "/tracking.js",
-            "dest": "/tracking.js"
-        },
-        {
-            "src": "/test-tracking.html",
-            "dest": "/test-tracking.html"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/$1"
-        }
-    ],
     "headers": [
         {
             "source": "/api/(.*)",
@@ -67,16 +31,5 @@
                 }
             ]
         }
-    ],
-    "functions": {
-        "app/api/track/route.ts": {
-            "maxDuration": 30
-        },
-        "app/api/api-keys/route.ts": {
-            "maxDuration": 30
-        },
-        "app/api/websites/route.ts": {
-            "maxDuration": 30
-        }
-    }
+    ]
 }
