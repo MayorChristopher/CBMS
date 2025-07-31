@@ -20,14 +20,17 @@ export async function POST(request: NextRequest) {
                 ...metadata
             } = event
 
+            // Validate API key format
+            if (!api_key || typeof api_key !== 'string') {
+                throw new Error('Invalid API key format')
+            }
+
             return {
                 event_type,
                 session_id,
                 page_url,
                 timestamp,
                 metadata,
-                // We'll need to get the user_id from the api_key (which is the profile id)
-                // For now, we'll store the api_key and process it later
                 api_key
             }
         })

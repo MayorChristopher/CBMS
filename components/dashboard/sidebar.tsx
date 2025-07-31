@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -19,10 +19,13 @@ import {
   Database,
   Shield,
   Code,
+  Target,
+  Globe,
 } from "lucide-react"
 import { signOut } from "@/lib/auth"
+import { getCurrentUserProfile, Profile } from "@/lib/profiles"
 
-const navigation = [
+const adminNavigation = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { name: "Analytics", href: "/dashboard/analytics", icon: TrendingUp },
   { name: "Customers", href: "/dashboard/customers", icon: Users },
@@ -33,14 +36,60 @@ const navigation = [
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 
+const analystNavigation = [
+  { name: "Analyst Dashboard", href: "/dashboard/analyst", icon: BarChart3 },
+  { name: "Analytics", href: "/dashboard/analytics", icon: TrendingUp },
+  { name: "Reports", href: "/dashboard/reports", icon: FileText },
+  { name: "Integration", href: "/dashboard/integration", icon: Code },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+]
+
+const customerNavigation = [
+  { name: "Dashboard", href: "/dashboard/customer", icon: BarChart3 },
+  { name: "Analytics", href: "/dashboard/analytics", icon: TrendingUp },
+  { name: "Integration", href: "/dashboard/integration", icon: Code },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+]
+
 export function Sidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [profile, setProfile] = useState<Profile | null>(null)
+
+  useEffect(() => {
+    loadUserProfile()
+  }, [])
+
+  const loadUserProfile = async () => {
+    try {
+      const userProfile = await getCurrentUserProfile()
+      setProfile(userProfile)
+    } catch (error) {
+      console.error("Error loading user profile:", error)
+    }
+  }
 
   const handleSignOut = async () => {
     await signOut()
     window.location.href = "/login"
   }
+
+  // Get navigation based on user role
+  const getNavigation = () => {
+    if (!profile) return adminNavigation
+    switch (profile.role) {
+      case 'admin':
+        return adminNavigation
+      case 'analyst':
+        return analystNavigation
+      case 'user':
+        return customerNavigation
+      default:
+        return adminNavigation
+    }
+  }
+
+  const navigation = getNavigation()
 
   return (
     <div

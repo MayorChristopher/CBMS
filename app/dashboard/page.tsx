@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { MetricCard } from "@/components/dashboard/metric-card"
 import { RealTimeChart } from "@/components/dashboard/real-time-chart"
 import { ActivityFeed } from "@/components/dashboard/activity-feed"
 import { DeviceBreakdown } from "@/components/dashboard/device-breakdown"
+import { getCurrentUserProfile, Profile } from "@/lib/profiles"
 import { supabase } from "@/lib/supabase"
 import { Users, Activity, Clock, TrendingUp, Eye, MousePointer } from "lucide-react"
 
@@ -18,6 +20,8 @@ interface DashboardMetrics {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalCustomers: 0,
     activeSessions: 0,
@@ -29,13 +33,37 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadDashboardMetrics()
-
-    // Set up real-time updates
-    const interval = setInterval(loadDashboardMetrics, 30000) // Update every 30 seconds
-
-    return () => clearInterval(interval)
+    loadUserProfile()
   }, [])
+
+  useEffect(() => {
+    if (profile) {
+      // Route based on user role
+      if (profile.role === 'analyst') {
+        router.push('/dashboard/analyst')
+        return
+      } else if (profile.role === 'user') {
+        router.push('/dashboard/customer')
+        return
+      }
+
+      // Admin stays on main dashboard
+      loadDashboardMetrics()
+
+      // Set up real-time updates
+      const interval = setInterval(loadDashboardMetrics, 30000) // Update every 30 seconds
+      return () => clearInterval(interval)
+    }
+  }, [profile, router])
+
+  const loadUserProfile = async () => {
+    try {
+      const userProfile = await getCurrentUserProfile()
+      setProfile(userProfile)
+    } catch (error) {
+      console.error("Error loading user profile:", error)
+    }
+  }
 
   const loadDashboardMetrics = async () => {
     try {
