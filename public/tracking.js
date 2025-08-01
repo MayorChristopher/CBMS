@@ -6,7 +6,7 @@
     const scriptSrc = script ? script.src : '';
     const urlParams = new URLSearchParams(scriptSrc.split('?')[1]);
     const apiKey = urlParams.get('key');
-    const apiUrl = urlParams.get('api') || 'https://your-cbms-domain.com/api/track'; // Replace with your actual domain
+    const apiUrl = urlParams.get('api') || 'https://cbmsystem.vercel.app/api/track'; // Production URL
 
     if (!apiKey) {
         console.error('CBMS: No API key provided. Add ?key=YOUR_API_KEY to the script URL');

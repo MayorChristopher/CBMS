@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getCurrentUserProfile, Profile } from "@/lib/profiles"
 import { supabase } from "@/lib/supabase"
+import { config, getTrackingScript } from "@/lib/config"
 import {
   Copy,
   Plus,
@@ -37,7 +38,7 @@ interface Website {
   status: 'active' | 'inactive' | 'pending'
   created_at: string
   last_tracked?: string
-  verification_code?: string
+  verification_code?: string | null
   is_verified: boolean
 }
 
@@ -265,9 +266,8 @@ export default function IntegrationPage() {
     return session?.access_token
   }
 
-  const getTrackingScript = (apiKey: string, websiteUrl: string) => {
-    const cbmsUrl = window.location.origin
-    return `<script src="${cbmsUrl}/tracking.js?key=${apiKey}&api=${cbmsUrl}/api/track"></script>`
+  const getTrackingScriptForWebsite = (apiKey: string, websiteUrl: string) => {
+    return getTrackingScript(apiKey)
   }
 
   const getVerificationInstructions = (website: Website) => {
@@ -466,7 +466,7 @@ export default function IntegrationPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => copyToClipboard(getTrackingScript('YOUR_API_KEY', website.url), `script-${website.id}`)}
+                              onClick={() => copyToClipboard(getTrackingScriptForWebsite('YOUR_API_KEY', website.url), `script-${website.id}`)}
                             >
                               {copied === `script-${website.id}` ? (
                                 <>
