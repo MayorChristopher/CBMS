@@ -76,9 +76,18 @@ export async function POST(request: NextRequest) {
             }
         )
 
+        // Generate verification code
+        const verificationCode = Math.random().toString(36).substring(2, 10)
+
         const { data: website, error } = await supabaseClient
             .from('websites')
-            .insert([{ name, url }])
+            .insert([{
+                name,
+                url,
+                status: 'pending',
+                verification_code: verificationCode,
+                is_verified: false
+            }])
             .select()
             .single()
 
