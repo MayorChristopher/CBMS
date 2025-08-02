@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+
         const { searchParams } = new URL(request.url)
         const token = searchParams.get('token')
         const { name, url } = await request.json()
@@ -76,6 +77,12 @@ export async function POST(request: NextRequest) {
             }
         )
 
+        // Get user ID from token
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+        if (userError || !user) {
+            return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+        }
+
         // Generate verification code
         const verificationCode = Math.random().toString(36).substring(2, 10)
 
@@ -86,7 +93,8 @@ export async function POST(request: NextRequest) {
                 url,
                 status: 'pending',
                 verification_code: verificationCode,
-                is_verified: false
+                is_verified: false,
+                user_id: user.id
             }])
             .select()
             .single()
