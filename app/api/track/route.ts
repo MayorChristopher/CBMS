@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Define the schema for validation
 const EventSchema = z.object({
@@ -57,12 +58,16 @@ export async function POST(request: NextRequest) {
                 ...metadata
             } = event;
 
+            // Hash the incoming API key to match key_hash in the database
+            const keyHash = crypto.createHash('sha256').update(api_key).digest('hex');
+
             // Basic enrichment
             return {
                 event_type,
                 session_id,
                 page_url,
                 timestamp,
+                api_key: keyHash, // Store the hash, not the raw key
                 customer_id: metadata.customer_id || null,
                 element_id: metadata.element_id || null,
                 metadata: {
