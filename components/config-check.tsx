@@ -29,7 +29,7 @@ export function ConfigCheck() {
     // Show loading state briefly to prevent flash
     if (isConfigured === null) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gray-50 dark:bg-background flex items-center justify-center p-4">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
                     <p className="text-gray-600">Checking configuration...</p>
@@ -43,7 +43,7 @@ export function ConfigCheck() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gray-50 dark:bg-background flex items-center justify-center p-4">
             <Card className="w-full max-w-2xl">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-red-600">
@@ -100,7 +100,7 @@ export function ConfigCheck() {
                             </div>
                         </div>
 
-                        <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
+                        <div className="bg-gray-900 dark:bg-card text-green-400 p-4 rounded-lg font-mono text-sm">
                             <div>NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co</div>
                             <div>NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</div>
                         </div>

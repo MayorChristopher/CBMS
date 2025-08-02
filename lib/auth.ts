@@ -14,7 +14,7 @@ function checkSupabaseConfig() {
 }
 
 // Helper function to add timeout to async operations
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 5000): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 15000): Promise<T> {
   return Promise.race([
     promise,
     new Promise<never>((_, reject) =>

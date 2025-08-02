@@ -26,7 +26,9 @@ import {
   Trash2,
   Settings,
   Shield,
-  Activity
+  Activity,
+  Info,
+  X
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -71,6 +73,10 @@ export default function IntegrationPage() {
   const [copied, setCopied] = useState<string | null>(null)
   const [showApiKey, setShowApiKey] = useState<string | null>(null)
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null)
+  const [analyzeUrl, setAnalyzeUrl] = useState('')
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisResult, setAnalysisResult] = useState<any>(null)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -160,30 +166,57 @@ export default function IntegrationPage() {
   const verifyWebsite = async (websiteId: string) => {
     setVerifyingWebsite(websiteId)
     try {
-      // In a real implementation, you would check if the verification code is present on the website
-      // For now, we'll simulate verification
-      const { error } = await supabase
-        .from('websites')
-        .update({
-          status: 'active',
-          is_verified: true,
-          verification_code: null
+      const website = websites.find(w => w.id === websiteId);
+      
+      if (!website) {
+        throw new Error("Website not found");
+      }
+      
+      // Call the verification API to check if the code is present on the website
+      const response = await fetch(`/api/websites/verify?token=${await getAuthToken()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          websiteId: websiteId,
+          websiteUrl: website.url,
+          verificationCode: website.verification_code
         })
-        .eq('id', websiteId)
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || "Verification failed");
+      }
+      
+      if (data.verified) {
+        // Update the website status in the database
+        const { error } = await supabase
+          .from('websites')
+          .update({
+            status: 'active',
+            is_verified: true,
+            verification_code: null
+          })
+          .eq('id', websiteId);
 
-      if (error) throw error
+        if (error) throw error;
 
-      setWebsites(websites.map(w =>
-        w.id === websiteId
-          ? { ...w, status: 'active', is_verified: true, verification_code: null }
-          : w
-      ))
-      toast.success('Website verified successfully!')
+        setWebsites(websites.map(w =>
+          w.id === websiteId
+            ? { ...w, status: 'active', is_verified: true, verification_code: null }
+            : w
+        ));
+        
+        toast.success('Website verified successfully!');
+      } else {
+        toast.error('Verification code not found on website. Please check your implementation.');
+      }
     } catch (err) {
-      console.error('Error verifying website:', err)
-      toast.error('Failed to verify website')
+      console.error('Error verifying website:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to verify website');
     } finally {
-      setVerifyingWebsite(null)
+      setVerifyingWebsite(null);
     }
   }
 
@@ -249,6 +282,37 @@ export default function IntegrationPage() {
     }
   }
 
+  const analyzeWebsite = async () => {
+    if (!analyzeUrl) return;
+    
+    setAnalyzing(true);
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    
+    try {
+      const response = await fetch(`/api/websites/analyze?token=${await getAuthToken()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: analyzeUrl })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to analyze website');
+      }
+      
+      setAnalysisResult(data.analysis);
+      toast.success('Website analyzed successfully!');
+    } catch (err) {
+      console.error('Error analyzing website:', err);
+      setAnalysisError(err instanceof Error ? err.message : 'Failed to analyze website');
+      toast.error('Failed to analyze website');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const copyToClipboard = async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -267,7 +331,8 @@ export default function IntegrationPage() {
   }
 
   const getTrackingScriptForWebsite = (apiKey: string, websiteUrl: string) => {
-    return getTrackingScript(apiKey)
+    // Always use the production domain for the script and API endpoint
+    return getTrackingScript(apiKey, 'https://cbmsystem.vercel.app/api')
   }
 
   const getVerificationInstructions = (website: Website) => {
@@ -302,25 +367,33 @@ export default function IntegrationPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-8 space-y-6">
+    <div className="max-w-6xl mx-auto py-4 sm:py-6 md:py-8 space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-6">
       <div>
-        <h1 className="text-3xl font-bold mb-2">Integration Center</h1>
-        <p className="text-gray-600">Manage your websites and API keys for customer behavior tracking</p>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">Integration Center</h1>
+        <p className="text-sm sm:text-base text-gray-600">Manage your websites and API keys for customer behavior tracking</p>
       </div>
 
-      <Tabs defaultValue="websites" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="websites" className="flex items-center gap-2">
-            <Globe className="h-4 w-4" />
-            Websites
+      <Tabs defaultValue="websites" className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-4 overflow-x-auto">
+          <TabsTrigger value="websites" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Globe className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">Websites</span>
+            <span className="xs:hidden">Sites</span>
           </TabsTrigger>
-          <TabsTrigger value="api-keys" className="flex items-center gap-2">
-            <Key className="h-4 w-4" />
-            API Keys
+          <TabsTrigger value="api-keys" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Key className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">API Keys</span>
+            <span className="xs:hidden">Keys</span>
           </TabsTrigger>
-          <TabsTrigger value="setup" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Setup Guide
+          <TabsTrigger value="analyzer" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">Website Analyzer</span>
+            <span className="xs:hidden">Analyzer</span>
+          </TabsTrigger>
+          <TabsTrigger value="setup" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">Setup Guide</span>
+            <span className="xs:hidden">Guide</span>
           </TabsTrigger>
         </TabsList>
 
@@ -331,7 +404,7 @@ export default function IntegrationPage() {
               <CardTitle>Add New Website</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label htmlFor="website-name">Website Name</Label>
                   <Input
@@ -466,7 +539,7 @@ export default function IntegrationPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => copyToClipboard(getTrackingScriptForWebsite('YOUR_API_KEY', website.url), `script-${website.id}`)}
+                              onClick={() => copyToClipboard(getTrackingScriptForWebsite(generatedApiKey || 'YOUR_API_KEY', website.url), `script-${website.id}`)}
                             >
                               {copied === `script-${website.id}` ? (
                                 <>
@@ -513,6 +586,7 @@ export default function IntegrationPage() {
                     className="w-full p-2 border rounded-md"
                     value={newApiKey.websiteId}
                     onChange={(e) => setNewApiKey({ ...newApiKey, websiteId: e.target.value })}
+                    title="Select website for API key"
                   >
                     <option value="">Select a website</option>
                     {websites.filter(w => w.status === 'active').map(website => (
@@ -686,12 +760,204 @@ export default function IntegrationPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        <TabsContent value="analyzer" className="space-y-6">
+          {/* Website Analyzer */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Website Analyzer</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Enter any website URL to analyze its content, technologies, and tracking capabilities.
+                This helps you understand what analytics and tracking are already implemented on a site.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  placeholder="https://example.com"
+                  value={analyzeUrl}
+                  onChange={(e) => setAnalyzeUrl(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={analyzeWebsite} disabled={analyzing || !analyzeUrl}>
+                  {analyzing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Activity className="h-4 w-4 mr-2" />
+                      Analyze Website
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              {analysisError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{analysisError}</AlertDescription>
+                </Alert>
+              )}
+              
+              {analysisResult && (
+                <div className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm font-medium">Basic Information</CardTitle>
+                      </CardHeader>
+                      <CardContent className="py-2">
+                        <dl className="space-y-2">
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Page Title</dt>
+                            <dd className="text-sm">{analysisResult.title}</dd>
+                          </div>
+                          {analysisResult.metaTags.description && (
+                            <div>
+                              <dt className="text-xs font-medium text-gray-500">Meta Description</dt>
+                              <dd className="text-sm">{analysisResult.metaTags.description}</dd>
+                            </div>
+                          )}
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Page Size</dt>
+                            <dd className="text-sm">{Math.round(analysisResult.pageSize / 1024)} KB</dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Links</dt>
+                            <dd className="text-sm">
+                              {analysisResult.links.internal} internal, {analysisResult.links.external} external
+                            </dd>
+                          </div>
+                        </dl>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm font-medium">Content Structure</CardTitle>
+                      </CardHeader>
+                      <CardContent className="py-2">
+                        <dl className="space-y-2">
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Headings</dt>
+                            <dd className="text-sm">
+                              {Object.entries(analysisResult.headings)
+                                .filter(([_, count]) => (count as number) > 0)
+                                .map(([tag, count]) => `${tag}: ${count as number}`)
+                                .join(', ')}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Media</dt>
+                            <dd className="text-sm">
+                              {[
+                                analysisResult.hasImages ? 'Images' : null,
+                                analysisResult.hasVideos ? 'Videos' : null,
+                                analysisResult.hasForms ? 'Forms' : null,
+                              ]
+                                .filter(Boolean)
+                                .join(', ') || 'No media detected'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Resources</dt>
+                            <dd className="text-sm">
+                              {analysisResult.performance.resourceCount} total, 
+                              {analysisResult.performance.scriptCount} scripts, 
+                              {analysisResult.performance.cssCount} stylesheets
+                            </dd>
+                          </div>
+                        </dl>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm font-medium">Technologies</CardTitle>
+                      </CardHeader>
+                      <CardContent className="py-2">
+                        <dl className="space-y-2">
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Detected Technologies</dt>
+                            <dd className="text-sm">
+                              {analysisResult.technologies.length > 0 
+                                ? analysisResult.technologies.join(', ') 
+                                : 'No specific technologies detected'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Social Media</dt>
+                            <dd className="text-sm">
+                              {analysisResult.socialMedia.length > 0 
+                                ? analysisResult.socialMedia.join(', ') 
+                                : 'No social media detected'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Cookie Consent</dt>
+                            <dd className="text-sm">
+                              {analysisResult.hasCookieConsent ? 'Detected' : 'Not detected'}
+                            </dd>
+                          </div>
+                        </dl>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm font-medium">Analytics & Tracking</CardTitle>
+                      </CardHeader>
+                      <CardContent className="py-2">
+                        <dl className="space-y-2">
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Analytics Platforms</dt>
+                            <dd className="text-sm">
+                              {analysisResult.analytics.length > 0 
+                                ? analysisResult.analytics.join(', ') 
+                                : 'No analytics platforms detected'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-medium text-gray-500">Tracking Status</dt>
+                            <dd className="text-sm flex items-center gap-1">
+                              {analysisResult.hasTracking 
+                                ? <><CheckCircle className="h-3 w-3 text-green-500" /> Tracking detected</>
+                                : <><X className="h-3 w-3 text-red-500" /> No tracking detected</>}
+                            </dd>
+                          </div>
+                          <div className="pt-2">
+                            {analysisResult.hasTracking ? (
+                              <Badge variant="destructive">Site already has tracking</Badge>
+                            ) : (
+                              <Badge variant="secondary">Site ready for CBMS tracking</Badge>
+                            )}
+                          </div>
+                        </dl>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Recommendation:</strong> {analysisResult.hasTracking 
+                        ? 'This site already has analytics tracking. Installing CBMS will give you deeper behavior insights alongside existing analytics.' 
+                        : 'This site has no tracking detected. Installing CBMS will provide comprehensive analytics and customer behavior insights.'}
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Generated API Key Dialog */}
       {generatedApiKey && (
         <Dialog open={!!generatedApiKey} onOpenChange={() => setGeneratedApiKey(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-4xl">
             <DialogHeader>
               <DialogTitle>API Key Created Successfully!</DialogTitle>
             </DialogHeader>
@@ -703,29 +969,67 @@ export default function IntegrationPage() {
                   Copy it now and store it securely.
                 </AlertDescription>
               </Alert>
-              <div className="bg-gray-100 p-4 rounded">
-                <code className="text-sm break-all">{generatedApiKey}</code>
+              
+              <div className="space-y-2">
+                <Label>Your API Key:</Label>
+                <div className="bg-gray-100 p-4 rounded">
+                  <code className="text-sm break-all">{generatedApiKey}</code>
+                </div>
+                <Button
+                  onClick={() => copyToClipboard(generatedApiKey, 'generated-key')}
+                  className="w-full"
+                >
+                  {copied === 'generated-key' ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Copied API Key!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy API Key
+                    </>
+                  )}
+                </Button>
               </div>
-              <Button
-                onClick={() => copyToClipboard(generatedApiKey, 'generated-key')}
-                className="w-full"
-              >
-                {copied === 'generated-key' ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy API Key
-                  </>
-                )}
-              </Button>
+              
+              <div className="space-y-2 mt-6">
+                <Label>Tracking Script:</Label>
+                <div className="bg-gray-100 p-4 rounded">
+                  <code className="text-sm break-all whitespace-pre-wrap">
+                    {getTrackingScript(generatedApiKey, 'https://cbmsystem.vercel.app/api')}
+                  </code>
+                </div>
+                <Button
+                  onClick={() => copyToClipboard(getTrackingScript(generatedApiKey, 'https://cbmsystem.vercel.app/api'), 'generated-script')}
+                  className="w-full"
+                >
+                  {copied === 'generated-script' ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Copied Script!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy Tracking Script
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              <div className="mt-4 text-sm text-muted-foreground">
+                <p className="font-medium">Installation Instructions:</p>
+                <ol className="list-decimal list-inside space-y-1 mt-2">
+                  <li>Copy the tracking script above</li>
+                  <li>Paste it into the <code className="bg-gray-100 px-1 rounded">&lt;head&gt;</code> section of your website</li>
+                  <li>Your website will start tracking customer behavior immediately</li>
+                </ol>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
       )}
     </div>
   )
-} 
+}

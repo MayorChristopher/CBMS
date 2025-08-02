@@ -5,14 +5,14 @@ export async function POST(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url)
         const token = searchParams.get('token')
-        const { websiteId, verificationCode } = await request.json()
+        const { websiteId, websiteUrl, verificationCode } = await request.json()
 
         if (!token) {
             return NextResponse.json({ error: 'No token provided' }, { status: 401 })
         }
 
-        if (!websiteId || !verificationCode) {
-            return NextResponse.json({ error: 'Website ID and verification code are required' }, { status: 400 })
+        if (!websiteId || !verificationCode || !websiteUrl) {
+            return NextResponse.json({ error: 'Website ID, URL, and verification code are required' }, { status: 400 })
         }
 
         // Create a Supabase client with the user's token
@@ -28,23 +28,73 @@ export async function POST(request: NextRequest) {
             }
         )
 
-        // Verify the website using the database function
+        // Ensure the URL starts with http/https
+        let url = websiteUrl;
+        if (!url.startsWith('http')) {
+            url = `https://${url}`;
+        }
+
+        // Fetch the website content to check for verification code
+        let verified = false;
+        try {
+            const response = await fetch(url, { 
+                headers: { 'User-Agent': 'CBMS-Verification-Bot' },
+                // Set a reasonable timeout
+                signal: AbortSignal.timeout(10000)
+            });
+            
+            if (response.ok) {
+                const html = await response.text();
+                
+                // Check for verification code in meta tag
+                const metaTagRegex = new RegExp(
+                    `<meta[^>]*name=["']cbms-verification["'][^>]*content=["']${verificationCode}["'][^>]*>`, 'i'
+                );
+                
+                // Check for verification code in script tag
+                const scriptTagRegex = new RegExp(
+                    `window\\.CBMS_VERIFICATION\\s*=\\s*["']${verificationCode}["']`, 'i'
+                );
+                
+                verified = metaTagRegex.test(html) || scriptTagRegex.test(html);
+            }
+        } catch (fetchError) {
+            console.error('Error fetching website:', fetchError);
+            return NextResponse.json({ 
+                error: 'Could not access website. Please ensure it is publicly accessible.',
+                verified: false 
+            }, { status: 400 });
+        }
+
+        if (!verified) {
+            return NextResponse.json({ 
+                error: 'Verification code not found on website. Please check your implementation.',
+                verified: false 
+            }, { status: 400 });
+        }
+
+        // Update the website status in the database
         const { data, error } = await supabaseClient
-            .rpc('verify_website', {
-                website_id: websiteId,
-                verification_code: verificationCode
+            .from('websites')
+            .update({
+                status: 'active',
+                is_verified: true,
+                verification_code: null
             })
+            .eq('id', websiteId)
+            .select()
+            .single();
 
         if (error) {
-            console.error('Error verifying website:', error)
-            return NextResponse.json({ error: 'Failed to verify website' }, { status: 500 })
+            console.error('Error updating website status:', error)
+            return NextResponse.json({ error: 'Failed to update website status', verified: true }, { status: 500 })
         }
 
-        if (!data) {
-            return NextResponse.json({ error: 'Invalid verification code' }, { status: 400 })
-        }
-
-        return NextResponse.json({ success: true, message: 'Website verified successfully' })
+        return NextResponse.json({ 
+            verified: true, 
+            success: true, 
+            message: 'Website verified successfully' 
+        });
 
     } catch (error) {
         console.error('Error processing website verification:', error)

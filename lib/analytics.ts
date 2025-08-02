@@ -185,7 +185,7 @@ class AnalyticsEngine {
         const buttonClicks = clicks.filter(c =>
             c.metadata?.tag_name === 'BUTTON' ||
             c.element_id?.includes('button') ||
-            c.metadata?.classes?.includes('btn')
+            (Array.isArray(c.metadata?.classes) && c.metadata.classes.includes('btn'))
         )
 
         if (buttonClicks.length > 3) {

@@ -25,3 +25,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ignore binaries and large files
+supabase.exe
+*.dll
+*.node
+*.pack.gz*
+*.map

@@ -46,52 +46,41 @@
   }
 
   .dark {
-    --background: 222 47% 11%;
-    /* deep blue-gray */
-    --foreground: 220 16% 96%;
-    /* almost white */
-    --card: 222 47% 13%;
-    /* slightly lighter than background */
-    --card-foreground: 220 16% 96%;
-    --popover: 222 47% 15%;
-    --popover-foreground: 220 16% 96%;
-    --primary: 217 91% 60%;
-    /* blue accent */
-    --primary-foreground: 220 16% 96%;
-    --secondary: 215 28% 17%;
-    /* dark slate */
-    --secondary-foreground: 220 16% 96%;
-    --muted: 215 16% 24%;
-    /* muted gray */
-    --muted-foreground: 220 16% 70%;
+    --background: 0 0% 10%;
+    /* true black for dark mode */
+    --foreground: 0 0% 100%;
+    /* pure white text */
+    --card: 0 0% 14%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 18%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 10%;
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 30%;
+    --muted-foreground: 0 0% 80%;
     --accent: 173 80% 40%;
-    /* teal accent */
-    --accent-foreground: 220 16% 96%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
-    /* red */
-    --destructive-foreground: 220 16% 96%;
-    --border: 215 16% 24%;
-    --input: 215 16% 24%;
-    --ring: 217 91% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 30%;
+    --input: 0 0% 30%;
+    --ring: 0 0% 100%;
     --chart-1: 217 91% 60%;
-    /* blue */
     --chart-2: 173 80% 40%;
-    /* teal */
     --chart-3: 43 96% 56%;
-    /* yellow */
     --chart-4: 340 82% 52%;
-    /* pink */
     --chart-5: 30 100% 50%;
-    /* orange */
     --radius: 0.5rem;
-    --sidebar-background: 222 47% 13%;
-    --sidebar-foreground: 220 16% 96%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 220 16% 96%;
-    --sidebar-accent: 215 28% 17%;
-    --sidebar-accent-foreground: 220 16% 96%;
-    --sidebar-border: 215 16% 24%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-background: 0 0% 14%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 0 0% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 30%;
+    --sidebar-ring: 0 0% 100%;
   }
 }
 
@@ -100,7 +89,74 @@
     @apply border-border;
   }
 
+  /* Ensure sidebar always uses correct colors in dark mode */
+  .dark .bg-sidebar,
+  body[data-theme="dark"] .bg-sidebar,
+  body[data-theme="system"] .bg-sidebar {
+    background-color: hsl(var(--sidebar-background)) !important;
+  }
+
+  .dark .text-sidebar-foreground,
+  body[data-theme="dark"] .text-sidebar-foreground,
+  body[data-theme="system"] .text-sidebar-foreground {
+    color: hsl(var(--sidebar-foreground)) !important;
+  }
+
   body {
     @apply bg-background text-foreground;
+    color-scheme: light dark;
+    /* Use a strong background and white text for dark/system mode */
+    background-color: var(--background, #111) !important;
+    color: var(--foreground, #fff) !important;
+    text-shadow: none;
+  }
+
+  .dark body,
+  body[data-theme="dark"],
+  body[data-theme="system"] {
+    background-color: #111 !important;
+    color: #fff !important;
+  }
+
+  /* Ensure links and code blocks are readable in dark mode */
+  a,
+  code,
+  pre,
+  .text-muted-foreground {
+    color: inherit;
+    text-shadow: none;
+    opacity: 1 !important;
+  }
+
+  /* Make sure all text is visible in dark mode */
+  .dark .text-muted-foreground,
+  .dark .text-gray-500,
+  .dark .text-gray-600,
+  body[data-theme="dark"] .text-muted-foreground,
+  body[data-theme="dark"] .text-gray-500,
+  body[data-theme="dark"] .text-gray-600,
+  body[data-theme="system"] .text-muted-foreground,
+  body[data-theme="system"] .text-gray-500,
+  body[data-theme="system"] .text-gray-600 {
+    color: #fff !important;
+    opacity: 1 !important;
+  }
+
+  /* Ensure links and code blocks are readable in dark mode */
+  a,
+  code,
+  pre,
+  .text-muted-foreground {
+    color: inherit;
+    text-shadow: none;
+    opacity: 1 !important;
+  }
+
+  /* Make sure all text is visible in dark mode */
+  .dark .text-muted-foreground,
+  .dark .text-gray-500,
+  .dark .text-gray-600 {
+    color: hsl(var(--foreground)) !important;
+    opacity: 0.95 !important;
   }
 }

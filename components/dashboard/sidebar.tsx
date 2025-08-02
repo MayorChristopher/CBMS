@@ -54,6 +54,29 @@ const customerNavigation = [
 export function Sidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  
+  // Check if we're on mobile view
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setCollapsed(true);
+        setMobileOpen(false);
+      }
+    };
+    
+    // Set initial state
+    handleResize();
+    
+    // Add resize listener
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Toggle sidebar for mobile
+  const toggleMobileSidebar = () => {
+    setMobileOpen(!mobileOpen);
+  };
   const [profile, setProfile] = useState<Profile | null>(null)
 
   useEffect(() => {
@@ -92,12 +115,34 @@ export function Sidebar() {
   const navigation = getNavigation()
 
   return (
-    <div
-      className={cn(
-        "flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300",
-        collapsed ? "w-16" : "w-64",
+    <>
+      {/* Mobile menu overlay */}
+      {mobileOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setMobileOpen(false)}
+        />
       )}
-    >
+      
+      {/* Mobile toggle button (shown only on mobile) */}
+      <button 
+        className="md:hidden fixed top-4 right-4 z-50 bg-white p-2 rounded-full shadow-md"
+        onClick={toggleMobileSidebar}
+      >
+        {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </button>
+      
+      <div
+        className={cn(
+          "flex flex-col bg-white border-r border-gray-200 transition-all duration-300",
+          // Mobile: fixed positioning with z-index
+          "md:h-full md:static fixed z-40 top-0 bottom-0 left-0",
+          // Control width and visibility
+          collapsed ? "w-16" : "w-64",
+          // Mobile visibility
+          mobileOpen ? "translate-x-0" : "md:translate-x-0 -translate-x-full"
+        )}
+      >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
         {!collapsed && (
@@ -150,5 +195,6 @@ export function Sidebar() {
         </Button>
       </div>
     </div>
+    </>
   )
 }

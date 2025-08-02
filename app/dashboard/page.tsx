@@ -123,12 +123,12 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Customer Behaviour Monitoring System</p>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-sm sm:text-base text-gray-600">Customer Behaviour Monitoring System</p>
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4">
         <MetricCard
           title="Total Customers"
           value={metrics.totalCustomers.toLocaleString()}
@@ -180,12 +180,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <RealTimeChart />
         <ActivityFeed />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <DeviceBreakdown />
         <div className="bg-white p-6 rounded-lg border">
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>

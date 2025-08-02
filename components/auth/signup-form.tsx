@@ -74,23 +74,23 @@ export function SignUpForm() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
+        <Card className="w-full max-w-md mx-auto">
           <CardHeader className="text-center">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <CardTitle className="text-2xl font-bold text-green-700">Account Created!</CardTitle>
-            <CardDescription>Please check your email to confirm your account</CardDescription>
+            <CheckCircle className="h-12 sm:h-16 w-12 sm:w-16 text-green-500 mx-auto mb-2 sm:mb-4" />
+            <CardTitle className="text-xl sm:text-2xl font-bold text-green-700">Account Created!</CardTitle>
+            <CardDescription className="text-sm sm:text-base">Please check your email to confirm your account</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
+            <Alert className="text-sm">
+              <Info className="h-4 w-4 flex-shrink-0" />
+              <AlertDescription className="break-words">
                 We've sent a confirmation email to <strong>{formData.email}</strong>. Click the link in the email to
                 activate your account.
               </AlertDescription>
             </Alert>
 
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs sm:text-sm text-muted-foreground">
               <p>After confirming your email:</p>
               <ol className="list-decimal list-inside mt-2 space-y-1">
                 <li>Return to the login page</li>
@@ -109,23 +109,23 @@ export function SignUpForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
-          <CardDescription className="text-center">Join the CBMS platform</CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-xl sm:text-2xl font-bold text-center">Create Account</CardTitle>
+          <CardDescription className="text-center text-sm sm:text-base">Join the CBMS platform</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+              <Alert variant="destructive" className="text-sm">
+                <AlertDescription className="break-words">{error}</AlertDescription>
               </Alert>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName" className="text-sm">First Name</Label>
                 <Input
                   id="firstName"
                   name="firstName"
@@ -136,7 +136,7 @@ export function SignUpForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName" className="text-sm">Last Name</Label>
                 <Input
                   id="lastName"
                   name="lastName"
@@ -149,7 +149,7 @@ export function SignUpForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm">Email</Label>
               <Input
                 id="email"
                 name="email"
@@ -162,7 +162,7 @@ export function SignUpForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm">Password</Label>
               <Input
                 id="password"
                 name="password"
@@ -175,7 +175,7 @@ export function SignUpForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-sm">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -199,7 +199,7 @@ export function SignUpForm() {
             </Button>
           </div>
 
-          <div className="mt-4 text-center text-xs text-muted-foreground">
+          <div className="mt-4 text-center text-xs text-muted-foreground px-2">
             <p>By creating an account, you'll start with a "user" role.</p>
             <p>Contact an admin to upgrade to "admin" or "analyst" role.</p>
           </div>

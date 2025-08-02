@@ -1,12 +1,23 @@
 (function () {
-    'use strict';
-
-    // Get API key and optional config from script src
+    'use strict';// Get API key and optional config from window variables or script src
     const script = document.currentScript || document.querySelector('script[src*="tracking.js"]');
     const scriptSrc = script ? script.src : '';
     const urlParams = new URLSearchParams(scriptSrc.split('?')[1]);
-    const apiKey = urlParams.get('key');
-    const apiUrl = urlParams.get('api') || 'https://cbmsystem.vercel.app/api/track'; // Production URL
+    
+    // First try to get API key and endpoint from window variables (recommended approach)
+    let apiKey = window.CBMS_API_KEY;
+    let apiUrl = window.CBMS_API_ENDPOINT || 'https://cbmsystem.vercel.app/api/track';
+    
+    // Fall back to URL parameters if window variables aren't set
+    if (!apiKey) {
+        apiKey = urlParams.get('key');
+    }
+    
+    if (urlParams.get('api')) {
+        apiUrl = urlParams.get('api');
+    }
+    
+    const debug = urlParams.get('debug') === 'true' || window.CBMS_DEBUG === true;
 
     if (!apiKey) {
         console.error('CBMS: No API key provided. Add ?key=YOUR_API_KEY to the script URL');
@@ -19,7 +30,13 @@
         sessionTimeout: 30 * 60 * 1000, // 30 minutes
         batchSize: 10,
         batchTimeout: 5000, // 5 seconds
+        debug: debug,
     };
+
+    // Initialize debug UI if in debug mode
+    if (config.debug) {
+        initDebugUI();
+    }
 
     // State
     let sessionId = null;
@@ -202,6 +219,111 @@
 
         // Send any remaining events periodically
         setInterval(sendBatch, config.batchTimeout * 2);
+    }// Debug UI
+    function initDebugUI() {
+        console.log('CBMS: Debug mode enabled');
+
+        // Create debug panel
+        const panel = document.createElement('div');
+        panel.style.position = 'fixed';
+        panel.style.bottom = '10px';
+        panel.style.right = '10px';
+        panel.style.width = '300px';
+        panel.style.maxHeight = '400px';
+        panel.style.overflow = 'auto';
+        panel.style.background = 'rgba(0, 0, 0, 0.8)';
+        panel.style.color = '#00ff00';
+        panel.style.padding = '10px';
+        panel.style.borderRadius = '5px';
+        panel.style.fontFamily = 'monospace';
+        panel.style.fontSize = '12px';
+        panel.style.zIndex = '9999';
+
+        // Add header
+        panel.innerHTML = '<h3 style="margin: 0 0 10px 0; color: #fff;">CBMS Debug Console</h3>' +
+            '<div id="cbms-event-log" style="max-height: 300px; overflow-y: auto;"></div>' +
+            '<div style="margin-top: 10px; display: flex; justify-content: space-between;">' +
+            '<button id="cbms-toggle-btn" style="padding: 5px; cursor: pointer;">Hide</button>' +
+            '<button id="cbms-test-btn" style="padding: 5px; cursor: pointer;">Test Event</button>' +
+            '<button id="cbms-clear-btn" style="padding: 5px; cursor: pointer;">Clear</button>' +
+            '</div>';
+
+        document.body.appendChild(panel);
+
+        // Event log element
+        const eventLog = document.getElementById('cbms-event-log');
+
+        // Toggle button
+        const toggleBtn = document.getElementById('cbms-toggle-btn');
+        let isVisible = true;
+
+        toggleBtn.addEventListener('click', () => {
+            if (isVisible) {
+                eventLog.style.display = 'none';
+                toggleBtn.textContent = 'Show';
+                isVisible = false;
+            } else {
+                eventLog.style.display = 'block';
+                toggleBtn.textContent = 'Hide';
+                isVisible = true;
+            }
+        });
+
+        // Test button
+        const testBtn = document.getElementById('cbms-test-btn');
+        testBtn.addEventListener('click', () => {
+            trackEvent('test_event', { debug: true, manual: true });
+            logEvent('Manual test event triggered');
+        });
+
+        // Clear button
+        const clearBtn = document.getElementById('cbms-clear-btn');
+        clearBtn.addEventListener('click', () => {
+            eventLog.innerHTML = '';
+        });
+
+        // Override console.log for CBMS messages
+        const originalLog = console.log;
+        console.log = (...args) => {
+            originalLog(...args);
+            if (args[0] && typeof args[0] === 'string' && args[0].startsWith('CBMS:')) {
+                logEvent(args.join(' '));
+            }
+        };
+
+        // Log events to the panel
+        window.cbmsLogEvent = logEvent;
+
+        function logEvent(message) {
+            const time = new Date().toLocaleTimeString();
+            const logItem = document.createElement('div');
+            logItem.style.borderBottom = '1px solid #333';
+            logItem.style.padding = '5px 0';
+            logItem.innerHTML = `<span style="color: #999;">[${time}]</span> ${message}`;
+
+            eventLog.appendChild(logItem);
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+
+        // Monkey patch trackEvent to log events
+        const originalTrackEvent = trackEvent;
+        trackEvent = function (eventType, data = {}) {
+            logEvent(`Event: ${eventType}`);
+            return originalTrackEvent(eventType, data);
+        };
+
+        // Monkey patch sendBatch to log network activity
+        const originalSendBatch = sendBatch;
+        sendBatch = async function () {
+            logEvent(`Sending batch of ${eventQueue.length} events...`);
+            try {
+                await originalSendBatch();
+                logEvent('Batch sent successfully');
+            } catch (error) {
+                logEvent(`Error sending batch: ${error.message}`);
+                throw error;
+            }
+        };
     }
 
     // Public API
@@ -209,6 +331,10 @@
         track: trackEvent,
         init: init,
         config: config,
+        debug: function () {
+            config.debug = true;
+            initDebugUI();
+        }
     };
 
     // Auto-initialize if DOM is ready
