@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { z } from 'zod'
 
 // Define the schema for validation
 const EventSchema = z.object({
