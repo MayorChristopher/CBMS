@@ -81,9 +81,9 @@ export async function POST(request: NextRequest) {
             };
         });
 
-        // Insert events into the database
+        // Insert events into the correct tracking_events table
         const { error } = await supabase
-            .from('activities')
+            .from('tracking_events')
             .insert(processedEvents);
 
         if (error) {
