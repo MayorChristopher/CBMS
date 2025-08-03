@@ -28,7 +28,7 @@ class AnalyticsEngine {
     async calculateEngagementMetrics(customerId?: string, timeRange: string = '7d'): Promise<EngagementMetrics> {
         try {
             let query = supabase
-                .from('activities')
+                .from('tracking_events')
                 .select('*')
                 .gte('timestamp', this.getTimeRangeDate(timeRange));
             if (customerId) {
@@ -49,7 +49,7 @@ class AnalyticsEngine {
     async identifyBehaviorPatterns(customerId?: string): Promise<BehaviorPattern[]> {
         try {
             let query = supabase
-                .from('activities')
+                .from('tracking_events')
                 .select('*')
                 .order('timestamp', { ascending: true });
             if (customerId) {
@@ -69,7 +69,7 @@ class AnalyticsEngine {
     async generateConversionFunnel(funnelSteps: string[]): Promise<ConversionFunnel[]> {
         try {
             const { data: activities, error } = await supabase
-                .from('activities')
+                .from('tracking_events')
                 .select('*')
                 .in('event_type', ['page_view', 'form_submit', 'click'])
                 .order('timestamp', { ascending: true })
@@ -86,7 +86,7 @@ class AnalyticsEngine {
     async calculateDropOffRates(): Promise<Record<string, number>> {
         try {
             const { data: activities, error } = await supabase
-                .from('activities')
+                .from('tracking_events')
                 .select('*')
                 .eq('event_type', 'page_view')
 

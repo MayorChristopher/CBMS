@@ -6,6 +6,7 @@ import { MetricCard } from "@/components/dashboard/metric-card"
 import { RealTimeChart } from "@/components/dashboard/real-time-chart"
 import { ActivityFeed } from "@/components/dashboard/activity-feed"
 import { DeviceBreakdown } from "@/components/dashboard/device-breakdown"
+import { CustomerEngagementDashboard } from "@/components/dashboard/CustomerEngagementDashboard"
 import { getCurrentUserProfile, Profile } from "@/lib/profiles"
 import { supabase } from "@/lib/supabase"
 import { Users, Activity, Clock, TrendingUp, Eye, MousePointer } from "lucide-react"
@@ -187,22 +188,8 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <DeviceBreakdown />
-        <div className="bg-white p-6 rounded-lg border">
-          <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-          <div className="space-y-3">
-            <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-              <div className="font-medium">Generate Report</div>
-              <div className="text-sm text-gray-600">Create a new analytics report</div>
-            </button>
-            <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-              <div className="font-medium">Export Data</div>
-              <div className="text-sm text-gray-600">Download customer data as CSV</div>
-            </button>
-            <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-              <div className="font-medium">System Health</div>
-              <div className="text-sm text-gray-600">Check system performance</div>
-            </button>
-          </div>
+        <div>
+          <CustomerEngagementDashboard />
         </div>
       </div>
     </div>
