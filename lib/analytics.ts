@@ -25,7 +25,7 @@ export interface ConversionFunnel {
 }
 
 class AnalyticsEngine {
-    async calculateEngagementMetrics(customerId?: string, timeRange: string = '7d'): Promise<EngagementMetrics> {
+    async calculateEngagementMetrics(customerId?: string, timeRange: string = '7d', websiteId?: string): Promise<EngagementMetrics> {
         try {
             let query = supabase
                 .from('tracking_events')
@@ -33,6 +33,9 @@ class AnalyticsEngine {
                 .gte('timestamp', this.getTimeRangeDate(timeRange));
             if (customerId) {
                 query = query.eq('customer_id', customerId);
+            }
+            if (websiteId) {
+                query = query.eq('website_id', websiteId);
             }
             const { data: activities, error } = await query;
 
@@ -46,7 +49,7 @@ class AnalyticsEngine {
         }
     }
 
-    async identifyBehaviorPatterns(customerId?: string): Promise<BehaviorPattern[]> {
+    async identifyBehaviorPatterns(customerId?: string, websiteId?: string): Promise<BehaviorPattern[]> {
         try {
             let query = supabase
                 .from('tracking_events')
@@ -54,6 +57,9 @@ class AnalyticsEngine {
                 .order('timestamp', { ascending: true });
             if (customerId) {
                 query = query.eq('customer_id', customerId);
+            }
+            if (websiteId) {
+                query = query.eq('website_id', websiteId);
             }
             const { data: activities, error } = await query;
 
@@ -66,13 +72,17 @@ class AnalyticsEngine {
         }
     }
 
-    async generateConversionFunnel(funnelSteps: string[]): Promise<ConversionFunnel[]> {
+    async generateConversionFunnel(funnelSteps: string[], websiteId?: string): Promise<ConversionFunnel[]> {
         try {
-            const { data: activities, error } = await supabase
+            let query = supabase
                 .from('tracking_events')
                 .select('*')
                 .in('event_type', ['page_view', 'form_submit', 'click'])
-                .order('timestamp', { ascending: true })
+                .order('timestamp', { ascending: true });
+            if (websiteId) {
+                query = query.eq('website_id', websiteId);
+            }
+            const { data: activities, error } = await query;
 
             if (error) throw error
 
@@ -83,12 +93,16 @@ class AnalyticsEngine {
         }
     }
 
-    async calculateDropOffRates(): Promise<Record<string, number>> {
+    async calculateDropOffRates(websiteId?: string): Promise<Record<string, number>> {
         try {
-            const { data: activities, error } = await supabase
+            let query = supabase
                 .from('tracking_events')
                 .select('*')
-                .eq('event_type', 'page_view')
+                .eq('event_type', 'page_view');
+            if (websiteId) {
+                query = query.eq('website_id', websiteId);
+            }
+            const { data: activities, error } = await query;
 
             if (error) throw error
 
@@ -358,4 +372,4 @@ class AnalyticsEngine {
     }
 }
 
-export const analyticsEngine = new AnalyticsEngine() 
+export const analyticsEngine = new AnalyticsEngine()

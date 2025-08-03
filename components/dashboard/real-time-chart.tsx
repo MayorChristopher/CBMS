@@ -11,7 +11,11 @@ interface DataPoint {
   pageViews: number
 }
 
-export function RealTimeChart() {
+interface RealTimeChartProps {
+  websiteId?: string;
+}
+
+export function RealTimeChart({ websiteId }: RealTimeChartProps) {
   const [data, setData] = useState<DataPoint[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -34,44 +38,36 @@ export function RealTimeChart() {
       supabase.removeChannel(channel)
       clearInterval(interval)
     }
-  }, [])
+  }, [websiteId])
 
   const loadInitialData = async () => {
     try {
-      // Get the current time
+      // Use last 30 days for broader data
       const now = new Date()
-      
-      // Get the time 24 hours ago
-      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-      
-      // Format for Supabase query (ISO string)
-      const fromTime = dayAgo.toISOString()
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      const fromTime = monthAgo.toISOString()
       const toTime = now.toISOString()
-      
-      // Query real data from the tracking_events table, grouped by hour
-      const { data: activityData, error } = await supabase
+      let query = supabase
         .from('tracking_events')
         .select('*')
         .gte('timestamp', fromTime)
         .lte('timestamp', toTime)
         .order('timestamp', { ascending: true })
-      
+      if (websiteId && websiteId !== "") query = query.eq('website_id', websiteId)
+      const { data: activityData, error } = await query
+      console.log('RealTimeChart raw activityData:', activityData, 'error:', error)
       if (error) {
         console.error("Error fetching real-time data:", error)
         fallbackToSampleData()
         return
       }
-      
-      // If no data is available, use sample data
       if (!activityData || activityData.length === 0) {
         console.warn("No activity data available, using sample data")
         fallbackToSampleData()
         return
       }
-      
-      // Process the real data
       const processedData: DataPoint[] = processActivityData(activityData)
-      
+      console.log('RealTimeChart processedData:', processedData)
       setData(processedData)
       setLoading(false)
     } catch (error) {
@@ -83,31 +79,21 @@ export function RealTimeChart() {
   // Process real activity data into chart points
   const processActivityData = (activityData: any[]) => {
     const hourlyData: Record<string, { visitors: Set<string>, pageViews: number }> = {}
-    
-    // Group data by hour
     activityData.forEach(activity => {
-      const timestamp = new Date(activity.timestamp)
-      const hourKey = timestamp.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
-      
+      if (!activity.timestamp) return // skip if missing
+      const timestampObj = new Date(activity.timestamp)
+      if (isNaN(timestampObj.getTime())) return // skip if invalid
+      const hourKey = timestampObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
       if (!hourlyData[hourKey]) {
-        hourlyData[hourKey] = { 
-          visitors: new Set(), 
-          pageViews: 0 
-        }
+        hourlyData[hourKey] = { visitors: new Set(), pageViews: 0 }
       }
-      
-      // Count unique visitors by session_id
       if (activity.session_id) {
         hourlyData[hourKey].visitors.add(activity.session_id)
       }
-      
-      // Count page views
       if (activity.event_type === 'page_view') {
         hourlyData[hourKey].pageViews += 1
       }
     })
-    
-    // Convert to array format for chart
     return Object.entries(hourlyData).map(([time, data]) => ({
       time,
       visitors: data.visitors.size,
@@ -141,11 +127,13 @@ export function RealTimeChart() {
         : new Date(Date.now() - 60 * 60 * 1000)
       
       // Query for new activity data since the latest time
-      const { data: newActivityData, error } = await supabase
+      let query = supabase
         .from('tracking_events')
         .select('*')
         .gte('timestamp', latestTime.toISOString())
         .order('timestamp', { ascending: true })
+      if (websiteId) query = query.eq('website_id', websiteId)
+      const { data: newActivityData, error } = await query
       
       if (error) {
         console.error("Error fetching real-time updates:", error)

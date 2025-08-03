@@ -4,8 +4,8 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DatePicker } from "@/components/ui/date-picker"
 import { analyticsEngine, type EngagementMetrics } from "@/lib/analytics"
+import { WebsiteSelector } from "@/components/dashboard/WebsiteSelector"
 import { supabase } from "@/lib/supabase"
 import { FileText, Download, Calendar, BarChart3, Users, TrendingUp } from "lucide-react"
 
@@ -18,7 +18,6 @@ interface ReportData {
   deviceBreakdown: Array<{ device: string; count: number }>
   timeRange: string
 }
-
 export default function ReportsPage() {
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -26,69 +25,102 @@ export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState("7d")
   const [startDate, setStartDate] = useState<Date | undefined>(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
   const [endDate, setEndDate] = useState<Date | undefined>(new Date())
+  const [websiteId, setWebsiteId] = useState<string>("")
 
   useEffect(() => {
     generateReport()
-  }, [timeRange, startDate, endDate])
+  }, [timeRange, startDate, endDate, websiteId])
 
   const generateReport = async () => {
     try {
       setLoading(true)
-      
       // Get engagement metrics
-      const engagementMetrics = await analyticsEngine.calculateEngagementMetrics(undefined, timeRange)
-      
-      // Get customer count
-      const { count: customerCount } = await supabase
-        .from("customers")
-        .select("*", { count: "exact", head: true })
+      const engagementMetrics = await analyticsEngine.calculateEngagementMetrics(undefined, timeRange, websiteId || undefined)
 
-      // Get session count
-      const { count: sessionCount } = await supabase
-        .from("sessions")
-        .select("*", { count: "exact", head: true })
+      // Get customer count (for this website)
+      let customerCount = 0
+      if (websiteId) {
+        const { data: events } = await supabase
+          .from("tracking_events")
+          .select("customer_id")
+          .eq("website_id", websiteId)
+        const uniqueCustomers = new Set((events || []).map(e => e.customer_id).filter(Boolean))
+        customerCount = uniqueCustomers.size
+      } else {
+        const { count } = await supabase.from("customers").select("*", { count: "exact", head: true })
+        customerCount = count || 0
+      }
 
-      // Get activity count
-      const { count: activityCount } = await supabase
-        .from("tracking_events")
-        .select("*", { count: "exact", head: true })
+      // Get session count (for this website)
+      let sessionCount = 0
+      if (websiteId) {
+        const { data: events } = await supabase
+          .from("tracking_events")
+          .select("session_id")
+          .eq("website_id", websiteId)
+        const uniqueSessions = new Set((events || []).map(e => e.session_id).filter(Boolean))
+        sessionCount = uniqueSessions.size
+      } else {
+        const { count } = await supabase.from("sessions").select("*", { count: "exact", head: true })
+        sessionCount = count || 0
+      }
 
-      // Get top pages
-      const { data: activities } = await supabase
-        .from("tracking_events")
-        .select("page_url")
-        .eq("event_type", "page_view")
+      // Get activity count (for this website)
+      let activityCount = 0
+      if (websiteId) {
+        const { count } = await supabase
+          .from("tracking_events")
+          .select("*", { count: "exact", head: true })
+          .eq("website_id", websiteId)
+        activityCount = count || 0
+      } else {
+        const { count } = await supabase.from("tracking_events").select("*", { count: "exact", head: true })
+        activityCount = count || 0
+      }
 
-      const pageViews = activities?.reduce((acc, activity) => {
+      // Get top pages (for this website)
+      let activities = []
+      if (websiteId) {
+        const { data } = await supabase
+          .from("tracking_events")
+          .select("page_url")
+          .eq("event_type", "page_view")
+          .eq("website_id", websiteId)
+        activities = data || []
+      } else {
+        const { data } = await supabase
+          .from("tracking_events")
+          .select("page_url")
+          .eq("event_type", "page_view")
+        activities = data || []
+      }
+      const pageViews = activities.reduce((acc, activity) => {
         const page = activity.page_url
         acc[page] = (acc[page] || 0) + 1
         return acc
-      }, {} as Record<string, number>) || {}
-
+      }, {} as Record<string, number>)
       const topPages = Object.entries(pageViews)
         .map(([page, views]) => ({ page, views }))
         .sort((a, b) => b.views - a.views)
         .slice(0, 5)
 
-      // Get device breakdown
+      // Get device breakdown (sessions table, not website-specific unless you want to join)
       const { data: sessions } = await supabase
         .from("sessions")
         .select("device_type")
-
       const deviceCounts = sessions?.reduce((acc, session) => {
         const device = session.device_type || "unknown"
         acc[device] = (acc[device] || 0) + 1
         return acc
       }, {} as Record<string, number>) || {}
-
       const deviceBreakdown = Object.entries(deviceCounts)
         .map(([device, count]) => ({ device, count }))
 
       setReportData({
         engagementMetrics,
-        totalCustomers: customerCount || 0,
-        totalSessions: sessionCount || 0,
-        totalActivities: activityCount || 0,
+        totalCustomers: customerCount,
+        totalSessions: sessionCount,
+        totalActivities: activityCount,
         topPages,
         deviceBreakdown,
         timeRange
@@ -214,12 +246,18 @@ ${data.deviceBreakdown.map(device => `${device.device}: ${device.count} sessions
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-          <FileText className="h-8 w-8 text-blue-600" />
-          Reports & Analytics
-        </h1>
-        <p className="text-gray-600">Generate and export comprehensive reports</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <FileText className="h-8 w-8 text-blue-600" />
+            Reports & Analytics
+          </h1>
+          <p className="text-gray-600">Generate and export comprehensive reports</p>
+        </div>
+        <div>
+          <label htmlFor="website-select" className="sr-only">Select Website</label>
+          <WebsiteSelector value={websiteId} onChange={setWebsiteId} />
+        </div>
       </div>
 
       {/* Report Controls */}
@@ -260,22 +298,28 @@ ${data.deviceBreakdown.map(device => `${device.device}: ${device.count} sessions
             </div>
 
             <div>
-              <label className="text-sm font-medium">Start Date</label>
+              <label htmlFor="start-date" className="text-sm font-medium">Start Date</label>
               <input
+                id="start-date"
                 type="date"
                 value={startDate?.toISOString().split('T')[0]}
                 onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : undefined)}
                 className="w-full px-3 py-2 border rounded-md"
+                title="Start Date"
+                placeholder="Start Date"
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium">End Date</label>
+              <label htmlFor="end-date" className="text-sm font-medium">End Date</label>
               <input
+                id="end-date"
                 type="date"
                 value={endDate?.toISOString().split('T')[0]}
                 onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : undefined)}
                 className="w-full px-3 py-2 border rounded-md"
+                title="End Date"
+                placeholder="End Date"
               />
             </div>
           </div>
@@ -397,4 +441,4 @@ ${data.deviceBreakdown.map(device => `${device.device}: ${device.count} sessions
       )}
     </div>
   )
-} 
+}

@@ -17,33 +17,38 @@ interface DeviceData {
 
 const COLORS = ["#0070f3", "#00d4aa", "#ff6b6b", "#4ecdc4"]
 
-export function DeviceBreakdown() {
+interface DeviceBreakdownProps {
+  websiteId?: string
+}
+
+export function DeviceBreakdown({ websiteId }: DeviceBreakdownProps) {
   const [data, setData] = useState<DeviceData[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadDeviceData()
-  }, [])
+  }, [websiteId])
 
   const loadDeviceData = async () => {
     try {
-      const { data: sessions, error } = await supabase.from("sessions").select("device_type")
-
+      let query = supabase
+        .from("tracking_events")
+        .select("metadata, website_id")
+        .eq("event_type", "session_start")
+      if (websiteId) query = query.eq("website_id", websiteId)
+      const { data: events, error } = await query
       if (error) throw error
 
-      // Count device types
+      // Count device types from metadata.device_type
       const deviceCounts =
-        sessions?.reduce(
-          (acc, session) => {
-            const device = session.device_type || "unknown"
-            acc[device] = (acc[device] || 0) + 1
-            return acc
-          },
-          {} as Record<string, number>,
-        ) || {}
+        events?.reduce((acc, event) => {
+          const device = event.metadata?.device_type || "unknown"
+          acc[device] = (acc[device] || 0) + 1
+          return acc
+        }, {} as Record<string, number>) || {}
 
       // Format data for chart
-      const chartData: DeviceData[] = [
+      const chartData = [
         {
           name: "Desktop",
           value: deviceCounts.desktop || 0,
@@ -62,7 +67,7 @@ export function DeviceBreakdown() {
           color: COLORS[2],
           icon: Tablet,
         },
-      ].filter((item) => item.value > 0)
+      ].filter((item): item is DeviceData => item.value > 0)
 
       setData(chartData)
     } catch (error) {
@@ -116,7 +121,7 @@ export function DeviceBreakdown() {
             return (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: item.color }} aria-label={item.name + ' color'} />
                   <Icon className="h-4 w-4 text-gray-600" />
                   <span className="text-sm font-medium">{item.name}</span>
                 </div>

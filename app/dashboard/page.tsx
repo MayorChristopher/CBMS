@@ -7,125 +7,79 @@ import { RealTimeChart } from "@/components/dashboard/real-time-chart"
 import { ActivityFeed } from "@/components/dashboard/activity-feed"
 import { DeviceBreakdown } from "@/components/dashboard/device-breakdown"
 import { CustomerEngagementDashboard } from "@/components/dashboard/CustomerEngagementDashboard"
-import { getCurrentUserProfile, Profile } from "@/lib/profiles"
-import { supabase } from "@/lib/supabase"
-import { Users, Activity, Clock, TrendingUp, Eye, MousePointer } from "lucide-react"
+import { WebsiteSelector } from "@/components/dashboard/WebsiteSelector"
+import { Users, Activity, TrendingUp, Eye, MousePointer } from "lucide-react"
 
 interface DashboardMetrics {
+  engagement: any | null
   totalCustomers: number
-  activeSessions: number
-  avgSessionDuration: string
+  totalSessions: number
   totalPageViews: number
-  bounceRate: number
-  conversionRate: number
 }
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [profile, setProfile] = useState<any>(null)
   const [metrics, setMetrics] = useState<DashboardMetrics>({
+    engagement: null,
     totalCustomers: 0,
-    activeSessions: 0,
-    avgSessionDuration: "0m",
+    totalSessions: 0,
     totalPageViews: 0,
-    bounceRate: 0,
-    conversionRate: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [websiteId, setWebsiteId] = useState<string>("")
 
   useEffect(() => {
-    loadUserProfile()
-  }, [])
+    async function fetchMetrics() {
+      setLoading(true)
+      // Fetch engagement metrics from analytics engine
+      const { analyticsEngine } = await import("@/lib/analytics")
+      const engagement = await analyticsEngine.calculateEngagementMetrics(undefined, '7d', websiteId || undefined)
 
-  useEffect(() => {
-    if (profile) {
-      // Route based on user role
-      if (profile.role === 'analyst') {
-        router.push('/dashboard/analyst')
-        return
-      } else if (profile.role === 'user') {
-        router.push('/dashboard/customer')
-        return
-      }
-
-      // Admin stays on main dashboard
-      loadDashboardMetrics()
-
-      // Set up real-time updates
-      const interval = setInterval(loadDashboardMetrics, 30000) // Update every 30 seconds
-      return () => clearInterval(interval)
-    }
-  }, [profile, router])
-
-  const loadUserProfile = async () => {
-    try {
-      const userProfile = await getCurrentUserProfile()
-      setProfile(userProfile)
-    } catch (error) {
-      console.error("Error loading user profile:", error)
-    }
-  }
-
-  const loadDashboardMetrics = async () => {
-    try {
-      // Load total customers
-      const { count: customerCount } = await supabase.from("customers").select("*", { count: "exact", head: true })
-
-      // Load active sessions (last 24 hours)
-      const { count: sessionCount } = await supabase
-        .from("sessions")
-        .select("*", { count: "exact", head: true })
-        .gte("session_start", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-
-      // Load total page views from tracking_events
-      const { count: pageViewCount } = await supabase
-        .from("tracking_events")
-        .select("*", { count: "exact", head: true })
-        .eq("event_type", "page_view")
-
-      // Calculate average session duration
-      const { data: sessions } = await supabase.from("sessions").select("duration").not("duration", "is", null)
-
-      let avgDuration = "0m"
-      if (sessions && sessions.length > 0) {
-        // Simple average calculation (in reality, you'd parse the interval)
-        avgDuration = "5m 30s" // Placeholder
-      }
-
-      // Load engagement metrics for bounce rate and conversion rate
-      const { data: engagementData } = await supabase.from("engagement_metrics").select("bounce_rate, conversion_rate")
-
-      let avgBounceRate = 0
-      let avgConversionRate = 0
-
-      if (engagementData && engagementData.length > 0) {
-        avgBounceRate =
-          engagementData.reduce((sum, metric) => sum + (metric.bounce_rate || 0), 0) / engagementData.length
-        avgConversionRate =
-          engagementData.reduce((sum, metric) => sum + (metric.conversion_rate || 0), 0) / engagementData.length
-      }
+      // Fetch total customers, sessions, and page views from Supabase
+      const { supabase } = await import("@/lib/supabase")
+      // Total customers (not filtered by websiteId)
+      const { data: customers, error: customersError } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+      // Total sessions
+      let sessionsQuery = supabase
+        .from('tracking_events')
+        .select('session_id', { count: 'exact', head: true })
+        .neq('session_id', null)
+        .eq('event_type', 'session_start')
+      if (websiteId) sessionsQuery = sessionsQuery.eq('website_id', websiteId)
+      const { data: sessions, error: sessionsError } = await sessionsQuery
+      // Total page views
+      let pageViewsQuery = supabase
+        .from('tracking_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_type', 'page_view')
+      if (websiteId) pageViewsQuery = pageViewsQuery.eq('website_id', websiteId)
+      const { data: pageViews, error: pageViewsError } = await pageViewsQuery
 
       setMetrics({
-        totalCustomers: customerCount || 0,
-        activeSessions: sessionCount || 0,
-        avgSessionDuration: avgDuration,
-        totalPageViews: pageViewCount || 0,
-        bounceRate: Math.round(avgBounceRate * 100) / 100,
-        conversionRate: Math.round(avgConversionRate * 100) / 100,
+        engagement,
+        totalCustomers: customers?.length || 0,
+        totalSessions: sessions?.length || 0,
+        totalPageViews: pageViews?.length || 0,
       })
-    } catch (error) {
-      console.error("Error loading dashboard metrics:", error)
-    } finally {
       setLoading(false)
     }
-  }
+    fetchMetrics()
+  }, [websiteId])
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm sm:text-base text-gray-600">Customer Behaviour Monitoring System</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600">Customer Behaviour Monitoring System</p>
+        </div>
+        <div>
+          <WebsiteSelector value={websiteId} onChange={setWebsiteId} />
+        </div>
       </div>
 
       {/* Metrics Grid */}
@@ -139,19 +93,11 @@ export default function DashboardPage() {
           loading={loading}
         />
         <MetricCard
-          title="Active Sessions"
-          value={metrics.activeSessions.toLocaleString()}
+          title="Total Sessions"
+          value={metrics.totalSessions.toLocaleString()}
           change="+5% from yesterday"
           changeType="positive"
           icon={Activity}
-          loading={loading}
-        />
-        <MetricCard
-          title="Avg Session Duration"
-          value={metrics.avgSessionDuration}
-          change="+2m from last week"
-          changeType="positive"
-          icon={Clock}
           loading={loading}
         />
         <MetricCard
@@ -163,17 +109,25 @@ export default function DashboardPage() {
           loading={loading}
         />
         <MetricCard
+          title="Engagement Score"
+          value={metrics.engagement?.engagement_score != null ? `${metrics.engagement.engagement_score}%` : "-"}
+          change=""
+          changeType="positive"
+          icon={TrendingUp}
+          loading={loading}
+        />
+        <MetricCard
           title="Bounce Rate"
-          value={`${metrics.bounceRate}%`}
-          change="-3% from last month"
+          value={metrics.engagement?.bounce_rate != null ? `${metrics.engagement.bounce_rate}%` : "-"}
+          change=""
           changeType="positive"
           icon={MousePointer}
           loading={loading}
         />
         <MetricCard
           title="Conversion Rate"
-          value={`${metrics.conversionRate}%`}
-          change="+1.2% from last month"
+          value={metrics.engagement?.conversion_rate != null ? `${metrics.engagement.conversion_rate}%` : "-"}
+          change=""
           changeType="positive"
           icon={TrendingUp}
           loading={loading}
@@ -182,14 +136,14 @@ export default function DashboardPage() {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <RealTimeChart />
-        <ActivityFeed />
+        <RealTimeChart websiteId={websiteId} />
+        <ActivityFeed websiteId={websiteId} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <DeviceBreakdown />
+        <DeviceBreakdown websiteId={websiteId} />
         <div>
-          <CustomerEngagementDashboard />
+          <CustomerEngagementDashboard websiteId={websiteId} />
         </div>
       </div>
     </div>

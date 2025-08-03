@@ -15,6 +15,7 @@ interface ActivityItem {
   timestamp: string
   customer_email?: string
   metadata: any
+  website_id?: string // Added for filtering
 }
 
 const eventIcons = {
@@ -31,7 +32,11 @@ const eventColors = {
   scroll: "bg-orange-100 text-orange-800",
 }
 
-export function ActivityFeed() {
+interface ActivityFeedProps {
+  websiteId?: string
+}
+
+export function ActivityFeed({ websiteId }: ActivityFeedProps) {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -43,25 +48,26 @@ export function ActivityFeed() {
       .channel("activity_feed")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "tracking_events" }, (payload) => {
         const newActivity = payload.new as ActivityItem
-        setActivities((prev) => [newActivity, ...prev.slice(0, 49)]) // Keep last 50
+        if (!websiteId || newActivity.website_id === websiteId) {
+          setActivities((prev) => [newActivity, ...prev.slice(0, 49)]) // Keep last 50
+        }
       })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [websiteId])
 
   const loadRecentActivities = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("tracking_events")
-        .select(`
-          *,
-          customers:customer_id(email)
-        `)
+        .select(`*, customers:customer_id(email)`)
         .order("timestamp", { ascending: false })
         .limit(50)
+      if (websiteId) query = query.eq("website_id", websiteId)
+      const { data, error } = await query
 
       if (error) throw error
 
