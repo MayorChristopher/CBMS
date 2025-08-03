@@ -50,12 +50,12 @@ export default function ReportsPage() {
 
       // Get activity count
       const { count: activityCount } = await supabase
-        .from("activities")
+        .from("tracking_events")
         .select("*", { count: "exact", head: true })
 
       // Get top pages
       const { data: activities } = await supabase
-        .from("activities")
+        .from("tracking_events")
         .select("page_url")
         .eq("event_type", "page_view")
 
