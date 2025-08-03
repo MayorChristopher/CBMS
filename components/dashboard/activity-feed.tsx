@@ -41,7 +41,7 @@ export function ActivityFeed() {
     // Set up real-time subscription
     const channel = supabase
       .channel("activity_feed")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activities" }, (payload) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "tracking_events" }, (payload) => {
         const newActivity = payload.new as ActivityItem
         setActivities((prev) => [newActivity, ...prev.slice(0, 49)]) // Keep last 50
       })
@@ -55,10 +55,10 @@ export function ActivityFeed() {
   const loadRecentActivities = async () => {
     try {
       const { data, error } = await supabase
-        .from("activities")
+        .from("tracking_events")
         .select(`
           *,
-          customers!activities_customer_id_fkey(email)
+          customers:customer_id(email)
         `)
         .order("timestamp", { ascending: false })
         .limit(50)

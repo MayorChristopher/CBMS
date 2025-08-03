@@ -21,8 +21,8 @@ export function RealTimeChart() {
 
     // Set up real-time subscription
     const channel = supabase
-      .channel("activities")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activities" }, (payload) => {
+      .channel("tracking_events")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "tracking_events" }, (payload) => {
         updateChartData()
       })
       .subscribe()
@@ -48,9 +48,9 @@ export function RealTimeChart() {
       const fromTime = dayAgo.toISOString()
       const toTime = now.toISOString()
       
-      // Query real data from the activities table, grouped by hour
+      // Query real data from the tracking_events table, grouped by hour
       const { data: activityData, error } = await supabase
-        .from('activities')
+        .from('tracking_events')
         .select('*')
         .gte('timestamp', fromTime)
         .lte('timestamp', toTime)
@@ -142,7 +142,7 @@ export function RealTimeChart() {
       
       // Query for new activity data since the latest time
       const { data: newActivityData, error } = await supabase
-        .from('activities')
+        .from('tracking_events')
         .select('*')
         .gte('timestamp', latestTime.toISOString())
         .order('timestamp', { ascending: true })
