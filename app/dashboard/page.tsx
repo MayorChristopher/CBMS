@@ -77,9 +77,9 @@ export default function DashboardPage() {
         .select("*", { count: "exact", head: true })
         .gte("session_start", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
 
-      // Load total page views
+      // Load total page views from tracking_events
       const { count: pageViewCount } = await supabase
-        .from("activities")
+        .from("tracking_events")
         .select("*", { count: "exact", head: true })
         .eq("event_type", "page_view")
 
